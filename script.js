@@ -1,683 +1,299 @@
-// 🔒 Capture globale des erreurs JS (debug)
-window.addEventListener("error", (e) => {
-  console.error("JS ERROR:", e.message);
-});
+// 🔒 Capture globale des erreurs JS
+window.addEventListener("error", e => console.error("JS ERROR:", e.message));
 
-// 🔹 script.js — version finale complète
-
-// Charger les animés depuis le stockage
-let animes = [];
-
-try {
-    animes = JSON.parse(localStorage.getItem("animes")) || [];
-} catch(e){
-    console.warn("LocalStorage corrompu ou vide", e);
-    animes = [];
-}
-
-// Fonction pour normaliser les notes et éviter les erreurs
+// 🔹 Utilitaire pour normaliser les animés
 function normalizeAnime(anime) {
-    return {
-        ...anime,
-        notes: anime.notes && typeof anime.notes === "object"
-            ? anime.notes
-            : {
-                personal: "",
-                characters: "",
-                genres: "",
-                summary: ""
-            }
-    };
+  return {
+    id: anime.id || Date.now(),
+    title: anime.title || "Sans titre",
+    status: anime.status || "planned",
+    rating: Number(anime.rating) || 0,
+    image: anime.image || "https://via.placeholder.com/200x280",
+    episodesWatched: Number(anime.episodesWatched) || 0,
+    episodesTotal: Number(anime.episodesTotal) || 0,
+    notes: anime.notes && typeof anime.notes === "object" ? anime.notes : {
+      personal: "", characters: "", genres: "", summary: ""
+    }
+  };
 }
 
-// Si localStorage vide ou invalide → charger depuis animes.json
-if(!animes || animes.length === 0){
-    fetch("animes.json")
-        .then(res => res.json())
-        .then(data => {
-            animes = data.map(normalizeAnime);
-            localStorage.setItem("animes", JSON.stringify(animes));
-            renderAnimes();
-        })
-        .catch(err => console.error("Erreur chargement animes.json :", err));
-} else {
-    // Normalisation si localStorage déjà rempli
-    animes = animes.map(normalizeAnime);
-    renderAnimes();
-}
-
-// 🔹 Fonctions existantes du projet
-// Exemple : renderAnimes() qui affiche les cartes
-function renderAnimes(){
-    const container = document.getElementById("animes-container");
-    if(!container) return;
-
-    container.innerHTML = ""; // Vider avant de remplir
-    animes.forEach(anime => {
-        const card = document.createElement("div");
-        card.className = "anime-card";
-        card.innerHTML = `
-            <h3>${anime.title}</h3>
-            <p><strong>Résumé:</strong> ${anime.notes.summary}</p>
-            <p><strong>Genres:</strong> ${anime.notes.genres}</p>
-            <p><strong>Personnal:</strong> ${anime.notes.personal}</p>
-            <p><strong>Personnages:</strong> ${anime.notes.characters}</p>
-        `;
-        container.appendChild(card);
-    });
-}
-
-// 🔹 Exemple de fonction pour ajouter un nouvel animé
-function addAnime(newAnime){
-    animes.push(normalizeAnime(newAnime));
-    localStorage.setItem("animes", JSON.stringify(animes));
-    renderAnimes();
-}
-
-// 🔹 Ici tu peux ajouter toutes les fonctions existantes : editAnime, deleteAnime, etc.
-const savedSort = JSON.parse(localStorage.getItem("sortSettings"));
-
-// 🛠️ NORMALISATION DES NOTES (compatibilité anciens animés)
-animes = animes.map(anime => ({
-  ...anime,
-  notes: anime.notes && typeof anime.notes === "object"
-    ? anime.notes
-    : {
-        personal: "",
-        characters: "",
-        genres: "",
-        summary: ""
-      }
-}));
-
-// (optionnel mais recommandé)
-localStorage.setItem("animes", JSON.stringify(animes));
-
-let currentSort = savedSort ? savedSort.currentSort : null;
-let sortDirection = savedSort ? savedSort.sortDirection : "desc";
+// 🔹 Variables globales
+let animes = [];
+let currentSort = null;
+let sortDirection = "desc";
 let currentFilter = "all";
 let searchTerm = "";
 let currentAnimeId = null;
 
-const CACHE_NAME = "anime-tracker-v1";
-const FILES_TO_CACHE = [
-  "./",
-  "./index.html",
-  "./style.css",
-  "./script.js"
-];
+// 🔹 Charger depuis localStorage
+try {
+  const stored = localStorage.getItem("animes");
+  animes = stored ? JSON.parse(stored) : [];
+} catch(e){
+  console.warn("LocalStorage corrompu ou vide", e);
+  animes = [];
+}
 
-self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(FILES_TO_CACHE);
+// 🔹 Charger depuis JSON si localStorage vide
+if(!Array.isArray(animes) || animes.length === 0){
+  fetch("animes.json")
+    .then(res => res.json())
+    .then(data => {
+      animes = data.map(normalizeAnime);
+      saveToLocalStorage();
+      renderAnimes();
+      updateStats();
     })
-  );
-});
-
-self.addEventListener("fetch", (event) => {
-  event.respondWith(
-    caches.match(event.request).then((response) => {
-      return response || fetch(event.request);
-    })
-  );
-});
-
-function calculateProgress(anime) {
-  if (!anime.episodesTotal || anime.episodesTotal === 0) return 0;
-  return Math.min(
-    100,
-    Math.round((anime.episodesWatched / anime.episodesTotal) * 100)
-  );
+    .catch(err => console.error("Erreur chargement animes.json :", err));
+} else {
+  animes = animes.map(normalizeAnime);
 }
 
-function calculateProgress(anime) {
-  const watched = Number(anime.episodesWatched) || 0;
-  const total = Number(anime.episodesTotal) || 0;
-
-  if (total <= 0) return 0;
-
-  return Math.min(100, Math.round((watched / total) * 100));
-}
-
-function animateCounter(element, target) {
-  let start = 0;
-  const duration = 800; // durée en ms
-  const stepTime = 15;
-  const increment = target / (duration / stepTime);
-
-  const counter = setInterval(() => {
-    start += increment;
-
-    if (start >= target) {
-      element.textContent = target;
-      clearInterval(counter);
-    } else {
-      element.textContent = Math.floor(start);
-    }
-  }, stepTime);
-}
-
-// Fonction pour sauvegarder
+// 🔹 Sauvegarde
 function saveToLocalStorage() {
   localStorage.setItem("animes", JSON.stringify(animes));
 }
 
+// 🔹 Stats
 function updateStats() {
-
   const total = animes.length;
+  const completed = animes.filter(a=>a.status==="completed").length;
+  const watching = animes.filter(a=>a.status==="watching").length;
+  const planned = animes.filter(a=>a.status==="planned").length;
+  const average = total>0 ? (animes.reduce((sum,a)=>sum+Number(a.rating||0),0)/total).toFixed(1) : 0;
 
-  const completed = animes.filter(a => a.status === "completed").length;
-  const watching = animes.filter(a => a.status === "watching").length;
-  const planned = animes.filter(a => a.status === "planned").length;
-
-  let average = 0;
-
-  if (total > 0) {
-    const sum = animes.reduce((acc, anime) => acc + Number(anime.rating), 0);
-    average = (sum / total).toFixed(1);
-  }
-
-  const totalEl = document.getElementById("totalStat");
-  const completedEl = document.getElementById("completedStat");
-  const watchingEl = document.getElementById("watchingStat");
-  const plannedEl = document.getElementById("plannedStat");
-  const averageEl = document.getElementById("averageStat");
-
-  if (totalEl) animateCounter(totalEl, total);
-  if (completedEl) animateCounter(completedEl, completed);
-  if (watchingEl) animateCounter(watchingEl, watching);
-  if (plannedEl) animateCounter(plannedEl, planned);
-  if (averageEl) averageEl.textContent = average;
-
-  const progressPercent = total > 0 
-  ? Math.round((completed / total) * 100)
-  : 0;
-
-  const progressText = document.getElementById("progressPercent");
-  const progressFill = document.getElementById("progressFill");
- 
-  if (progressText) progressText.textContent = progressPercent;
-  if (progressFill) progressFill.style.width = progressPercent + "%";
-}
-
-const modal = document.getElementById("editModal");
-const editStatus = document.getElementById("editStatus");
-const editRating = document.getElementById("editRating");
-const editImage = document.getElementById("editImage");
-const saveEdit = document.getElementById("saveEdit");
-const cancelEdit = document.getElementById("cancelEdit");
-const editEpisodesWatched = document.getElementById("editEpisodesWatched");
-const editEpisodesTotal = document.getElementById("editEpisodesTotal");
-const editNotePersonal = document.getElementById("editNotePersonal");
-const editNoteCharacters = document.getElementById("editNoteCharacters");
-const editNoteGenres = document.getElementById("editNoteGenres");
-const editNoteSummary = document.getElementById("editNoteSummary");
-
-// On récupère la grille
-const grid = document.querySelector(".anime-grid");
-const imageInput = document.getElementById("animeImage");
-
-function updateSortButtons() {
-
-  const buttons = document.querySelectorAll(".sort-container button");
-
-  buttons.forEach(button => {
-    button.classList.remove("active");
-    button.querySelector(".arrow").textContent = "";
+  ["totalStat","completedStat","watchingStat","plannedStat"].forEach((id,index)=>{
+    const el = document.getElementById(id);
+    if(el) el.textContent = [total,completed,watching,planned][index];
   });
 
-  if (!currentSort) return;
+  const avgEl = document.getElementById("averageStat");
+  if(avgEl) avgEl.textContent = average;
 
-  let activeButton;
-
-  if (currentSort === "rating") {
-    activeButton = document.getElementById("sortRating");
-  }
-
-  if (currentSort === "title") {
-    activeButton = document.getElementById("sortTitle");
-  }
-
-  if (currentSort === "recent") {
-    activeButton = document.getElementById("sortRecent");
-  }
-
-  if (activeButton) {
-    activeButton.classList.add("active");
-
-    const arrow = activeButton.querySelector(".arrow");
-    arrow.textContent = sortDirection === "desc" ? "↓" : "↑";
-  }
+  const progressPercent = total>0?Math.round((completed/total)*100):0;
+  const progressText = document.getElementById("progressPercent");
+  const progressFill = document.getElementById("progressFill");
+  if(progressText) progressText.textContent = progressPercent;
+  if(progressFill) progressFill.style.width = progressPercent+"%";
 }
 
-// Fonction pour afficher les animés
+// 🔹 Affichage des animés
 function renderAnimes() {
+  const grid = document.querySelector(".anime-grid");
+  if(!grid) return;
 
   grid.classList.add("fade");
-
-  setTimeout(() => {
-
+  setTimeout(()=>{
     grid.innerHTML = "";
+    let filtered = animes;
 
-    let filteredAnimes = animes;
+    if(currentFilter!=="all") filtered = filtered.filter(a=>a.status===currentFilter);
+    if(searchTerm!=="") filtered = filtered.filter(a=>a.title.toLowerCase().includes(searchTerm.toLowerCase()));
 
-    if (currentFilter !== "all") {
-      filteredAnimes = animes.filter(anime => anime.status === currentFilter);
+    // Tri
+    if(currentSort){
+      if(currentSort==="rating") filtered.sort((a,b)=>sortDirection==="desc"?b.rating-a.rating:a.rating-b.rating);
+      if(currentSort==="title") filtered.sort((a,b)=>sortDirection==="desc"?b.title.localeCompare(a.title):a.title.localeCompare(b.title));
+      if(currentSort==="recent") filtered.sort((a,b)=>sortDirection==="desc"?b.id-a.id:a.id-b.id);
     }
 
-    if (searchTerm !== "") {
-      filteredAnimes = filteredAnimes.filter(anime =>
-        anime.title.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    // TRI
-    if (currentSort === "rating") {
-      filteredAnimes.sort((a, b) =>
-        sortDirection === "desc"
-          ? b.rating - a.rating
-          : a.rating - b.rating
-      );
-      localStorage.setItem("sortSettings", JSON.stringify({
-        currentSort,
-        sortDirection
-      }));
-    }
-
-    if (currentSort === "title") {
-      filteredAnimes.sort((a, b) =>
-        sortDirection === "desc"
-          ? b.title.localeCompare(a.title)
-          : a.title.localeCompare(b.title)
-      );
-      localStorage.setItem("sortSettings", JSON.stringify({
-        currentSort,
-        sortDirection
-      }));
-    }
-
-    if (currentSort === "recent") {
-      filteredAnimes.sort((a, b) =>
-        sortDirection === "desc"
-          ? b.id - a.id
-          : a.id - b.id
-      );
-      localStorage.setItem("sortSettings", JSON.stringify({
-        currentSort,
-        sortDirection
-      }));
-    }
-
-    filteredAnimes.forEach((anime, index) => {
-
-      const watched = anime.episodesWatched || 0;
-      const total = anime.episodesTotal || 0;
-
-      const progress = total > 0
-          ? Math.round((watched / total) * 100)
-        : 0;
-
-      let progressColor = "red";
-
-      if (progress >= 25) progressColor = "orange";
-      if (progress >= 75) progressColor = "yellow";
-      if (progress === 100) progressColor = "green";
+    filtered.forEach((anime,index)=>{
+      const watched = anime.episodesWatched;
+      const total = anime.episodesTotal;
+      const progress = total>0?Math.round((watched/total)*100):0;
+      let color = progress===100?"green":progress>=75?"yellow":progress>=25?"orange":"red";
 
       const card = document.createElement("div");
       card.classList.add("anime-card");
-      card.style.animationDelay = `${index * 0.05}s`;
-
-      card.innerHTML = `
+      card.style.animationDelay = `${index*0.05}s`;
+      card.innerHTML=`
         <button class="delete-btn" data-id="${anime.id}">🗑️</button>
-
         <img src="${anime.image}" alt="Affiche">
-
         <h3>${anime.title}</h3>
-
-        <p class="status ${anime.status}">
-          ${anime.status === "watching" 
-            ? "En cours" 
-            : anime.status === "completed" 
-            ? "Vu" 
-            : "À regarder"}
-        </p>
-
+        <p class="status ${anime.status}">${anime.status==="watching"?"En cours":anime.status==="completed"?"Vu":"À regarder"}</p>
         <p class="rating">⭐ Note : ${anime.rating}/10</p>
-
-        ${
-          anime.notes &&
-          (anime.notes.personal ||
-            anime.notes.characters ||
-            anime.notes.genres ||
-            anime.notes.summary)
-            ? `
-              <div class="notes-preview">
-                <button class="toggle-notes">📘 Notes</button>
-
-                <div class="notes-content hidden">
-                  ${anime.notes?.personal ? `<p><strong>📝 Notes :</strong> ${anime.notes.personal}</p>` : ""}
-                  ${anime.notes?.characters ? `<p><strong>👤 Personnages :</strong> ${anime.notes.characters}</p>` : ""}
-                  ${anime.notes?.genres ? `<p><strong>🎭 Genres :</strong> ${anime.notes.genres}</p>` : ""}
-                  ${anime.notes?.summary ? `<p><strong>📖 Résumé :</strong> ${anime.notes.summary}</p>` : ""}
-                </div>
-              </div>
-           `
-           : ""
-        }
-
-        <p class="episodes">
-          📺 ${anime.episodesWatched || 0} / ${anime.episodesTotal || 0} épisodes
-        </p>
-
+        ${anime.notes && (anime.notes.personal||anime.notes.characters||anime.notes.genres||anime.notes.summary)?`
+          <div class="notes-preview">
+            <button class="toggle-notes">📘 Voir les notes</button>
+            <div class="notes-content hidden">
+              ${anime.notes.personal?`<p><strong>📝 Notes :</strong> ${anime.notes.personal}</p>`:""}
+              ${anime.notes.characters?`<p><strong>👤 Personnages :</strong> ${anime.notes.characters}</p>`:""}
+              ${anime.notes.genres?`<p><strong>🎭 Genres :</strong> ${anime.notes.genres}</p>`:""}
+              ${anime.notes.summary?`<p><strong>📖 Résumé :</strong> ${anime.notes.summary}</p>`:""}
+            </div>
+          </div>`:""}
+        <p class="episodes">📺 ${watched} / ${total} épisodes</p>
         <div class="progress-bar">
-          <div 
-            class="progress-fill ${progressColor}"
-            style="width: ${progress}%">
-          </div>
+          <div class="progress-fill ${color}" style="width:${progress}%"></div>
         </div>
-
         <p class="progress-text">📊 Progression : ${progress}%</p>
       `;
-
       grid.appendChild(card);
 
+      // Toggle notes
       const toggleBtn = card.querySelector(".toggle-notes");
       const notesContent = card.querySelector(".notes-content");
-
-      if (toggleBtn && notesContent) {
-        toggleBtn.addEventListener("click", (e) => {
-          e.stopPropagation(); // évite ouverture modale
+      if(toggleBtn && notesContent){
+        toggleBtn.addEventListener("click",e=>{
+          e.stopPropagation();
           notesContent.classList.toggle("hidden");
-          toggleBtn.textContent = notesContent.classList.contains("hidden")
-            ? "📘 Voir les notes"
-            : "📕 Masquer les notes";
+          toggleBtn.textContent = notesContent.classList.contains("hidden")?"📘 Voir les notes":"📕 Masquer les notes";
         });
       }
-      
-      const deleteBtn = card.querySelector(".delete-btn");
 
-      deleteBtn.addEventListener("click", () => {
-        animes = animes.filter(a => a.id !== anime.id);
+      // Delete
+      const deleteBtn = card.querySelector(".delete-btn");
+      deleteBtn.addEventListener("click",()=>{
+        animes = animes.filter(a=>a.id!==anime.id);
         saveToLocalStorage();
         renderAnimes();
+        updateStats();
       });
 
-      card.addEventListener("click", (e) => {
-
-        if (e.target.closest(".delete-btn")) return;
-
-        currentAnimeId = anime.id; // 🔒 VERROUILLAGE
-
-        console.log("Ouverture modale pour ID =", currentAnimeId);
-
-        editStatus.value = anime.status;
-        editRating.value = anime.rating;
-        editImage.value = anime.image;
-        editEpisodesWatched.value = anime.episodesWatched || 0;
-        editEpisodesTotal.value = anime.episodesTotal || 0;
-        editNotePersonal.value = anime.notes?.personal || "";
-        editNoteCharacters.value = anime.notes?.characters || "";
-        editNoteGenres.value = anime.notes?.genres || "";
-        editNoteSummary.value = anime.notes?.summary || "";
-        
-        modal.classList.remove("hidden");
+      // Click modale
+      card.addEventListener("click",e=>{
+        if(e.target.closest(".delete-btn")) return;
+        openEditModal(anime);
       });
 
     });
 
-    updateStats();
-    updateSortButtons();
-
     grid.classList.remove("fade");
-
-  }, 200);
+    updateStats();
+  },200);
 }
 
-cancelEdit.addEventListener("click", () => {
-  modal.classList.add("hidden");
-});
-
-saveEdit.addEventListener("click", () => {
-
-  // 🔎 DEBUG – vérifier que l’ID est bien défini
-  console.log("SAVE EDIT ID =", currentAnimeId);
-
-  const anime = animes.find(a => a.id === currentAnimeId);
-  if (!anime) {
-    console.error("Anime introuvable, abort save");
-    return;
-  }
-
-  const wasCompleted = anime.status === "completed";
-  const newStatus = editStatus.value;
-
-  anime.status = newStatus;
-
-  if (newStatus === "completed" && anime.episodesTotal > 0) {
-    anime.episodesWatched = anime.episodesTotal;
-  }
-  
-  anime.rating = Number(editRating.value);
-  anime.image = editImage.value;
-
-  anime.notes = {
-    personal: editNotePersonal.value.trim(),
-    characters: editNoteCharacters.value.trim(),
-    genres: editNoteGenres.value.trim(),
-    summary: editNoteSummary.value.trim()
-  };
-  
-  const watched = Math.max(0, Number(editEpisodesWatched.value) || 0);
-  const total = Math.max(0, Number(editEpisodesTotal.value) || 0);
-
-  anime.episodesTotal = total;
-  anime.episodesWatched = Math.min(watched, total);
-
-  if (anime.episodesTotal > 0 && anime.episodesWatched === anime.episodesTotal) {
-     anime.status = "completed";
-  }
-
-  saveToLocalStorage();
-  renderAnimes();
-  modal.classList.add("hidden");
-});
-
-// On lance l'affichage
-renderAnimes();
-
-// Récupération des éléments
-const titleInput = document.getElementById("animeTitle");
-const statusInput = document.getElementById("animeStatus");
-const ratingInput = document.getElementById("animeRating");
-const addButton = document.getElementById("addAnime");
-
-addButton.addEventListener("click", () => {
-
-  const notePersonal = document.getElementById("animeNotePersonal").value.trim();
-  const noteCharacters = document.getElementById("animeNoteCharacters").value.trim();
-  const noteGenres = document.getElementById("animeNoteGenres").value.trim();
-  const noteSummary = document.getElementById("animeNoteSummary").value.trim();
-
-  const title = titleInput.value.trim();
-  const status = statusInput.value;
-  const rating = ratingInput.value;
-  const image = imageInput.value.trim();
-
-  if (title === "" || rating === "") {
-    alert("Merci de remplir tous les champs !");
-    return;
-  }
-
-  animes.push({
-    id: Date.now(),
-    title: title,
-    status: status,
-    rating: Number(rating),
-    image: image !== "" ? image : "https://via.placeholder.com/200x280",
-    notes: {
-      personal: notePersonal,
-      characters: noteCharacters,
-      genres: noteGenres,
-      summary: noteSummary
-    },
+// 🔹 Ajouter un animé
+document.getElementById("addAnime").addEventListener("click",()=>{
+  const anime = {
+    title: document.getElementById("animeTitle").value.trim(),
+    status: document.getElementById("animeStatus").value,
+    rating: Number(document.getElementById("animeRating").value),
+    image: document.getElementById("animeImage").value.trim() || "https://via.placeholder.com/200x280",
     episodesWatched: Number(document.getElementById("animeEpisodesWatched").value) || 0,
     episodesTotal: Number(document.getElementById("animeEpisodesTotal").value) || 0,
-  });
+    notes: {
+      personal: document.getElementById("animeNotePersonal").value.trim(),
+      characters: document.getElementById("animeNoteCharacters").value.trim(),
+      genres: document.getElementById("animeNoteGenres").value.trim(),
+      summary: document.getElementById("animeNoteSummary").value.trim()
+    }
+  };
 
+  if(!anime.title || isNaN(anime.rating)) return alert("Merci de remplir tous les champs !");
+  animes.push(normalizeAnime(anime));
   saveToLocalStorage();
   renderAnimes();
-
-  // Reset des champs
-  titleInput.value = "";
-  ratingInput.value = "";
-  imageInput.value = "";
-  document.getElementById("animeEpisodesWatched").value = "";
-  document.getElementById("animeEpisodesTotal").value = "";
-
-  document.getElementById("animeNotePersonal").value = "";
-  document.getElementById("animeNoteCharacters").value = "";
-  document.getElementById("animeNoteGenres").value = "";
-  document.getElementById("animeNoteSummary").value = "";
+  ["animeTitle","animeRating","animeImage","animeEpisodesWatched","animeEpisodesTotal","animeNotePersonal","animeNoteCharacters","animeNoteGenres","animeNoteSummary"]
+    .forEach(id=>document.getElementById(id).value="");
 });
 
-document.getElementById("filterAll").addEventListener("click", () => {
-  currentFilter = "all";
-  renderAnimes();
+// 🔹 Filtres
+["filterAll","filterCompleted","filterWatching","filterPlanned"].forEach(id=>{
+  document.getElementById(id).addEventListener("click",()=>{
+    currentFilter=id.replace("filter","").toLowerCase()==="all"?"all":id.replace("filter","").toLowerCase();
+    renderAnimes();
+  });
 });
 
-document.getElementById("filterCompleted").addEventListener("click", () => {
-  currentFilter = "completed";
-  renderAnimes();
-});
-
-document.getElementById("filterWatching").addEventListener("click", () => {
-  currentFilter = "watching";
-  renderAnimes();
-});
-
-document.getElementById("filterPlanned").addEventListener("click", () => {
-  currentFilter = "planned";
-  renderAnimes();
-});
-
-const searchInput = document.getElementById("searchInput");
-
-searchInput.addEventListener("input", (e) => {
+// 🔹 Recherche
+document.getElementById("searchInput").addEventListener("input",e=>{
   searchTerm = e.target.value;
   renderAnimes();
 });
 
-document.getElementById("sortRating").addEventListener("click", () => {
-  if (currentSort === "rating") {
-    sortDirection = sortDirection === "desc" ? "asc" : "desc";
-  } else {
-    currentSort = "rating";
-    sortDirection = "desc";
-  }
-  renderAnimes();
+// 🔹 Tri
+["sortRating","sortTitle","sortRecent"].forEach(id=>{
+  document.getElementById(id).addEventListener("click",()=>{
+    const type = id.replace("sort","").toLowerCase();
+    if(currentSort===type) sortDirection = sortDirection==="desc"?"asc":"desc";
+    else {currentSort=type; sortDirection="desc";}
+    renderAnimes();
+  });
 });
 
-document.getElementById("sortTitle").addEventListener("click", () => {
-  if (currentSort === "title") {
-    sortDirection = sortDirection === "desc" ? "asc" : "desc";
-  } else {
-    currentSort = "title";
-    sortDirection = "desc";
-  }
+// 🔹 Modale édition
+const modal = document.getElementById("editModal");
+const saveEdit = document.getElementById("saveEdit");
+const cancelEdit = document.getElementById("cancelEdit");
+
+function openEditModal(anime){
+  currentAnimeId = anime.id;
+  modal.classList.remove("hidden");
+  ["editStatus","editRating","editImage","editEpisodesWatched","editEpisodesTotal","editNotePersonal","editNoteCharacters","editNoteGenres","editNoteSummary"]
+    .forEach(id=>document.getElementById(id).value = anime[id.replace("edit","").charAt(0).toLowerCase()+id.replace("edit","").slice(1)] || anime[id.replace("edit","").charAt(0).toLowerCase()+id.replace("edit","").slice(1)] || "");
+}
+
+cancelEdit.addEventListener("click",()=>modal.classList.add("hidden"));
+
+saveEdit.addEventListener("click",()=>{
+  const anime = animes.find(a=>a.id===currentAnimeId);
+  if(!anime) return alert("Anime introuvable");
+
+  anime.status = document.getElementById("editStatus").value;
+  anime.rating = Number(document.getElementById("editRating").value);
+  anime.image = document.getElementById("editImage").value.trim() || anime.image;
+  anime.episodesWatched = Number(document.getElementById("editEpisodesWatched").value) || 0;
+  anime.episodesTotal = Number(document.getElementById("editEpisodesTotal").value) || 0;
+  anime.notes = {
+    personal: document.getElementById("editNotePersonal").value.trim(),
+    characters: document.getElementById("editNoteCharacters").value.trim(),
+    genres: document.getElementById("editNoteGenres").value.trim(),
+    summary: document.getElementById("editNoteSummary").value.trim()
+  };
+
+  saveToLocalStorage();
   renderAnimes();
+  updateStats();
+  modal.classList.add("hidden");
 });
 
-document.getElementById("sortRecent").addEventListener("click", () => {
-  if (currentSort === "recent") {
-    sortDirection = sortDirection === "desc" ? "asc" : "desc";
-  } else {
-    currentSort = "recent";
-    sortDirection = "desc";
-  }
-  renderAnimes();
-});
-
+// 🔹 Thème clair/sombre
 const themeToggle = document.getElementById("themeToggle");
-
-const savedTheme = localStorage.getItem("theme") || "light";
-document.body.classList.add(savedTheme);
-
-themeToggle.addEventListener("click", () => {
+document.body.classList.add(localStorage.getItem("theme")||"light");
+themeToggle.addEventListener("click",()=>{
   document.body.classList.toggle("dark");
   document.body.classList.toggle("light");
-
-  const activeTheme = document.body.classList.contains("dark") ? "dark" : "light";
-  localStorage.setItem("theme", activeTheme);
+  localStorage.setItem("theme",document.body.classList.contains("dark")?"dark":"light");
 });
 
-document.getElementById("exportJson").addEventListener("click", () => {
-  const dataStr = JSON.stringify(animes, null, 2);
-  const blob = new Blob([dataStr], { type: "application/json" });
-
-  const url = URL.createObjectURL(blob);
+// 🔹 Export / import JSON
+document.getElementById("exportJson").addEventListener("click",()=>{
+  const blob = new Blob([JSON.stringify(animes,null,2)],{type:"application/json"});
   const a = document.createElement("a");
-  a.href = url;
-  a.download = "anime-list.json";
+  a.href = URL.createObjectURL(blob);
+  a.download="anime-list.json";
   a.click();
-
-  URL.revokeObjectURL(url);
+  URL.revokeObjectURL(a.href);
 });
 
 const importInput = document.getElementById("importJson");
-const importBtn = document.getElementById("importBtn");
-
-importBtn.addEventListener("click", () => {
-  importInput.click();
-});
-
-importInput.addEventListener("change", (e) => {
+document.getElementById("importBtn").addEventListener("click",()=>importInput.click());
+importInput.addEventListener("change",e=>{
   const file = e.target.files[0];
-  if (!file) return;
-
+  if(!file) return;
   const reader = new FileReader();
-
-  reader.onload = () => {
+  reader.onload = ()=> {
     try {
-      const importedData = JSON.parse(reader.result);
-
-      if (!Array.isArray(importedData)) {
-        alert("Fichier invalide");
-        return;
-      }
-
-      // 🔒 sécurité minimale
-      animes = importedData.map(anime => ({
-        id: anime.id || Date.now(),
-        title: anime.title || "Sans titre",
-        status: anime.status || "planned",
-        rating: Number(anime.rating) || 0,
-        image: anime.image || "https://via.placeholder.com/200x280",
-        episodesWatched: Number(anime.episodesWatched) || 0,
-        episodesTotal: Number(anime.episodesTotal) || 0,
-        notes: {
-          personal: anime.notes?.personal || "",
-          characters: anime.notes?.characters || "",
-          genres: anime.notes?.genres || "",
-          summary: anime.notes?.summary || ""
-        }
-      }));
-
+      const imported = JSON.parse(reader.result);
+      if(!Array.isArray(imported)) return alert("Fichier invalide");
+      animes = imported.map(normalizeAnime);
       saveToLocalStorage();
       renderAnimes();
+      updateStats();
       alert("Import réussi ✅");
-
-    } catch (err) {
-      alert("Erreur lors de l'import");
-    }
+    } catch(err){ alert("Erreur import JSON"); }
   };
-
   reader.readAsText(file);
 });
 
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker
-    .register("./service-worker.js")
-    .then(() => console.log("Service Worker enregistré"))
-    .catch(err => console.error("SW erreur :", err));
+// 🔹 Service Worker
+if("serviceWorker" in navigator){
+  navigator.serviceWorker.register("./service-worker.js")
+    .then(()=>console.log("SW enregistré"))
+    .catch(err=>console.error("SW erreur :",err));
 }
+
+// 🔹 Initialisation
+renderAnimes();
+updateStats();
