@@ -1,0 +1,523 @@
+/* Reset basique */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Fond général */
+body {
+  font-family: Arial, sans-serif;
+  background: #0f172a;
+  color: white;
+  padding: 20px;
+}
+
+/* Titre */
+h1 {
+  text-align: center;
+  margin-bottom: 30px;
+  font-size: 32px;
+  color: #a855f7;
+}
+
+/* Navigation */
+nav {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin-bottom: 30px;
+}
+
+nav button {
+  background: #1e293b;
+  border: none;
+  padding: 10px 20px;
+  color: white;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+nav button:hover {
+  background: #a855f7;
+}
+
+/* Zone principale */
+main {
+  background: #1e293b;
+  padding: 30px;
+  border-radius: 12px;
+  min-height: 200px;
+}
+
+/* Grille des animés */
+.anime-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 20px;
+}
+
+/* Carte animé */
+.anime-card {
+  background: #0f172a;
+  border-radius: 12px;
+  padding: 15px;
+  text-align: center;
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.anime-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 20px rgba(168, 85, 247, 0.3);
+}
+
+.anime-card img {
+  width: 100%;
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+
+.anime-card h3 {
+  margin-bottom: 10px;
+}
+
+/* Statuts */
+.status {
+  padding: 5px;
+  border-radius: 6px;
+  margin-bottom: 10px;
+  font-weight: bold;
+}
+
+.watching {
+  background: orange;
+}
+
+.completed {
+  background: green;
+}
+
+.planned {
+  background: royalblue;
+}
+
+/* Section ajout */
+.add-section {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 30px;
+  flex-wrap: wrap;
+}
+
+.add-section input,
+.add-section select {
+  padding: 8px;
+  border-radius: 6px;
+  border: none;
+}
+
+.add-section button {
+  background: #a855f7;
+  border: none;
+  padding: 8px 15px;
+  color: white;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.add-section button:hover {
+  background: #9333ea;
+}
+
+.delete-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: crimson;
+  border: none;
+  color: white;
+  padding: 5px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.anime-card {
+  position: relative;
+}
+
+.search-section {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.search-section input {
+  width: 300px;
+  padding: 8px;
+  border-radius: 6px;
+  border: none;
+}
+
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.hidden {
+  display: none;
+}
+
+.modal-content {
+  background: #1e293b;
+  padding: 30px;
+  border-radius: 12px;
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.modal-content input,
+.modal-content select,
+.modal-content textarea {
+  padding: 8px;
+  border-radius: 6px;
+  border: none;
+}
+
+.modal-buttons {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+}
+
+.modal-buttons button {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+#saveEdit {
+  background: #a855f7;
+  color: white;
+}
+
+#cancelEdit {
+  background: gray;
+  color: white;
+}
+
+.stats-container {
+  display: flex;
+  justify-content: space-between;
+  margin: 20px 0;
+  gap: 15px;
+}
+
+.stat-box {
+  flex: 1;
+  background: #1e293b;
+  padding: 15px;
+  border-radius: 10px;
+  text-align: center;
+}
+
+.stat-box h3 {
+  font-size: 14px;
+  margin-bottom: 5px;
+  color: #a855f7;
+}
+
+.stat-box p {
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.sort-container {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.sort-container button {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 8px;
+  background: #334155;
+  color: white;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.sort-container button:hover {
+  background: #a855f7;
+}
+
+.anime-grid {
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.anime-grid.fade {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.anime-card {
+  opacity: 0;
+  transform: scale(0.95) translateY(10px);
+  animation: popIn 0.4s ease forwards;
+}
+
+@keyframes popIn {
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.sort-container button.active {
+  background: #a855f7;
+  box-shadow: 0 0 10px rgba(168, 85, 247, 0.6);
+}
+
+.sort-container .arrow {
+  margin-left: 5px;
+  font-size: 12px;
+}
+
+body.light {
+  background: linear-gradient(135deg, #1e1b4b, #312e81);
+}
+
+body.dark {
+  background: linear-gradient(135deg, #0f172a, #1e293b);
+}
+
+.progress-container {
+  margin-top: 20px;
+  margin-bottom: 25px; /* espace avec les filtres */
+}
+
+.progress-bar {
+  width: 100%;
+  height: 12px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #a855f7, #6366f1);
+  transition: width 0.6s ease;
+  border-radius: 10px;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background: #ddd;
+  border-radius: 6px;
+  overflow: hidden;
+  margin-top: 6px;
+}
+
+.progress-fill {
+  height: 100%;
+  transition: width 0.4s ease, background-color 0.4s ease;
+}
+
+/* Couleurs dynamiques */
+.progress-fill.red {
+  background-color: #e74c3c;
+}
+
+.progress-fill.orange {
+  background-color: #e67e22;
+}
+
+.progress-fill.yellow {
+  background-color: #f1c40f;
+}
+
+.progress-fill.green {
+  background-color: #2ecc71;
+}
+
+.notes-block {
+  margin-top: 8px;
+  font-size: 0.9em;
+  line-height: 1.4;
+}
+
+.notes-block p {
+  margin: 3px 0;
+  opacity: 0.9;
+}
+
+/* =========================
+   CARTE ANIMÉ – NOTES
+========================= */
+
+.anime-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.anime-card .rating {
+  font-weight: 600;
+}
+
+/* Bloc notes */
+.notes-block {
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+body.dark .notes-block {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.notes-block p {
+  margin: 0;
+  line-height: 1.4;
+}
+
+.notes-block strong {
+  font-weight: 600;
+}
+
+/* =========================
+   ÉPISODES & PROGRESSION
+========================= */
+
+.episodes {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+/* Barre de progression */
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background: #ddd;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+body.dark .progress-bar {
+  background: #444;
+}
+
+.progress-fill {
+  height: 100%;
+  transition: width 0.4s ease;
+}
+
+/* Couleurs progression */
+.progress-fill.red {
+  background: #e74c3c;
+}
+
+.progress-fill.orange {
+  background: #f39c12;
+}
+
+.progress-fill.yellow {
+  background: #f1c40f;
+}
+
+.progress-fill.green {
+  background: #2ecc71;
+}
+
+.progress-text {
+  font-size: 0.8rem;
+  opacity: 0.85;
+}
+
+.modal-content textarea {
+  width: 100%;
+  min-height: 60px;
+  resize: vertical;
+}
+
+.modal-content input[type="text"] {
+  width: 100%;
+}
+
+.notes-preview {
+  margin-top: 8px;
+}
+
+.toggle-notes {
+  margin-top: 6px;
+  background: transparent;
+  border: none;
+  color: #4a90e2;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.toggle-notes:hover {
+  text-decoration: underline;
+}
+
+.notes-block.hidden {
+  display: none;
+}
+
+@media (max-width: 768px) {
+
+  .anime-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .anime-card {
+    padding: 12px;
+  }
+
+  .anime-card img {
+    width: 100%;
+    height: auto;
+  }
+
+  .modal-content {
+    width: 95%;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  .backup-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .backup-controls button {
+    width: 100%;
+  }
+
+}
+
+button {
+  min-height: 44px; /* recommandé mobile */
+}
