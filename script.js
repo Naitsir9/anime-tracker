@@ -3,8 +3,78 @@ window.addEventListener("error", (e) => {
   console.error("JS ERROR:", e.message);
 });
 
+// 🔹 script.js — version finale complète
+
 // Charger les animés depuis le stockage
-let animes = JSON.parse(localStorage.getItem("animes")) || [];
+let animes = [];
+
+try {
+    animes = JSON.parse(localStorage.getItem("animes")) || [];
+} catch(e){
+    console.warn("LocalStorage corrompu ou vide", e);
+    animes = [];
+}
+
+// Fonction pour normaliser les notes et éviter les erreurs
+function normalizeAnime(anime) {
+    return {
+        ...anime,
+        notes: anime.notes && typeof anime.notes === "object"
+            ? anime.notes
+            : {
+                personal: "",
+                characters: "",
+                genres: "",
+                summary: ""
+            }
+    };
+}
+
+// Si localStorage vide ou invalide → charger depuis animes.json
+if(!animes || animes.length === 0){
+    fetch("animes.json")
+        .then(res => res.json())
+        .then(data => {
+            animes = data.map(normalizeAnime);
+            localStorage.setItem("animes", JSON.stringify(animes));
+            renderAnimes();
+        })
+        .catch(err => console.error("Erreur chargement animes.json :", err));
+} else {
+    // Normalisation si localStorage déjà rempli
+    animes = animes.map(normalizeAnime);
+    renderAnimes();
+}
+
+// 🔹 Fonctions existantes du projet
+// Exemple : renderAnimes() qui affiche les cartes
+function renderAnimes(){
+    const container = document.getElementById("animes-container");
+    if(!container) return;
+
+    container.innerHTML = ""; // Vider avant de remplir
+    animes.forEach(anime => {
+        const card = document.createElement("div");
+        card.className = "anime-card";
+        card.innerHTML = `
+            <h3>${anime.title}</h3>
+            <p><strong>Résumé:</strong> ${anime.notes.summary}</p>
+            <p><strong>Genres:</strong> ${anime.notes.genres}</p>
+            <p><strong>Personnal:</strong> ${anime.notes.personal}</p>
+            <p><strong>Personnages:</strong> ${anime.notes.characters}</p>
+        `;
+        container.appendChild(card);
+    });
+}
+
+// 🔹 Exemple de fonction pour ajouter un nouvel animé
+function addAnime(newAnime){
+    animes.push(normalizeAnime(newAnime));
+    localStorage.setItem("animes", JSON.stringify(animes));
+    renderAnimes();
+}
+
+// 🔹 Ici tu peux ajouter toutes les fonctions existantes : editAnime, deleteAnime, etc.
 const savedSort = JSON.parse(localStorage.getItem("sortSettings"));
 
 // 🛠️ NORMALISATION DES NOTES (compatibilité anciens animés)
